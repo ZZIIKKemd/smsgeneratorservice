@@ -9,7 +9,7 @@ import javax.persistence.Id;
 public class Device {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
-    private String id;
+    private Integer id;
     private String numberPort;
     private String numberSim;
     private String status;
