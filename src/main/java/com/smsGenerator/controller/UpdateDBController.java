@@ -39,4 +39,9 @@ public class UpdateDBController {
     public String getAllDevice() {
         return updateDBService.getAllDeviceStatus();
     }
+
+    @GetMapping("/reset_all-device")
+    public String resetAllDvice() {
+        return updateDBService.resetAllDvice();
+    }
 }

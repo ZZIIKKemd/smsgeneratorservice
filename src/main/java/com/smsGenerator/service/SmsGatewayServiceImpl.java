@@ -55,11 +55,9 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
     private SmsStatus generateRequest(String phone, String message) {
         List<Device> devices = deviceRepos.findAll();
         Map<Integer, DeviceWrapper> devicesMap = devices.stream().collect(Collectors.toMap((entry) -> entry.getNumberPort(), (entry) -> generateDeviceWrapper(entry)));
-
         RequestInfo oldRequestInfo = getOldRequestInfo(devicesMap);
-
-
         RequestInfo newRequestInfo = getNewRequestInfo(oldRequestInfo, devicesMap);
+
         if (newRequestInfo != null) {
             StringBuilder requestAddress = generateStringRequest(newRequestInfo.getPort(), newRequestInfo.getSim(), phone, message);
 
@@ -69,6 +67,9 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
             requestInfoRepos.save(newRequestInfo);
             try {
                 String statusRequest = restTemplate.getForObject(requestAddress.toString(), String.class);
+                if(statusRequest.contains("ERROR")){
+                    throw new Exception();
+                }
             } catch (Exception e) {
                 devicesMap.get(newRequestInfo.getPort()).getStatus().put(newRequestInfo.getSim(), STATUS_FAILED);
                 e.printStackTrace();
@@ -109,7 +110,7 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
         StringBuilder requestAddress = new StringBuilder("http://87.244.1.90:/default/en_US/send.html?u=admin&p=sms_93_ZAK_322ZAK933&l=&n=&m=");
         requestAddress.insert(83, message);
         requestAddress.insert(80, phone);
-        requestAddress.insert(77, sim);
+        requestAddress.insert(77, sim+1);
         requestAddress.insert(19, numberPort);
         return requestAddress;
     }
@@ -142,8 +143,8 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
         }
         final int sizePortMap = devicesMap.size();
         for (int i = 0; i < sizePortMap; i++) {
-            for (int j = 0; j < devicesMap.get(oldRequestInfo.getPort()).getDevice().getNumberSim(); j++) {
-                if (indexSim == (devicesMap.get(oldRequestInfo.getPort()).getDevice().getNumberSim() - 1)) {
+            for (int j = 0; j < listWrapper.get(indexPort).getDevice().getNumberSim(); j++) {
+                if (indexSim == (listWrapper.get(indexPort).getDevice().getNumberSim() - 1)) {
                     if (indexPort == (sizePortMap - 1)) {
                         indexPort = 0;
                     } else {

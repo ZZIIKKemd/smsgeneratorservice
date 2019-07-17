@@ -83,4 +83,23 @@ public class UpdateDBServiceImpl implements  UpdateDBService{
         }
         return "Faild!";
     }
+
+    @Override
+    public String resetAllDvice() {
+        List<Device> devices = deviceRepos.findAll().stream()
+                .peek(device -> device.setStatus(null))
+                .collect(Collectors.toList());
+        devices.stream().forEach(device -> {
+            Map<Integer, String> status = new HashMap<>();
+            IntStream.range(0, device.getNumberSim()).forEach(i -> status.put(i, STATUS_OK));
+            try {
+                final String jsonString = afterBurnerMapper.writeValueAsString(status);
+                device.setStatus(jsonString);
+                deviceRepos.save(device);
+            } catch (JsonProcessingException e) {
+                e.printStackTrace();
+            }
+        });
+        return "Successfully!";
+    }
 }

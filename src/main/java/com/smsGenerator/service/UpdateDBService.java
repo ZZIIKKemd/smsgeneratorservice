@@ -10,4 +10,6 @@ public interface UpdateDBService {
     String deleteDevice(Integer numberPort);
 
     String getAllDeviceStatus();
+
+    String resetAllDvice();
 }
