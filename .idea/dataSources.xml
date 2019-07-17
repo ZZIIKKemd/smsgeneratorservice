@@ -7,5 +7,11 @@
       <jdbc-driver>org.postgresql.Driver</jdbc-driver>
       <jdbc-url>jdbc:postgresql://localhost:5432/usersmanagement</jdbc-url>
     </data-source>
+    <data-source source="LOCAL" name="GeneratorSMSRequest@localhost" uuid="d5355de5-bf95-445c-a5fa-848c0c04cd36">
+      <driver-ref>postgresql</driver-ref>
+      <synchronize>true</synchronize>
+      <jdbc-driver>org.postgresql.Driver</jdbc-driver>
+      <jdbc-url>jdbc:postgresql://localhost:5432/GeneratorSMSRequest</jdbc-url>
+    </data-source>
   </component>
 </project>

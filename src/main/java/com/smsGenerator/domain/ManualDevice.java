@@ -7,6 +7,6 @@ import lombok.NoArgsConstructor;
 @NoArgsConstructor
 public class ManualDevice {
     String action;
-    String numberPort;
-    String numberSIM;
+    Integer numberPort;
+    Integer numberSIM;
 }

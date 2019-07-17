@@ -9,4 +9,5 @@ import org.springframework.stereotype.Service;
 @Repository
 public interface DeviceRepos extends JpaRepository<Device, Integer> {
 
+    Device findByNumberPort(Integer numberPort);
 }

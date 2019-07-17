@@ -3,5 +3,11 @@ package com.smsGenerator.service;
 import com.smsGenerator.domain.ManualDevice;
 
 public interface UpdateDBService {
-    String updateDB(ManualDevice manualDevice);
+    String addPort(ManualDevice manualDevice);
+
+    String getPortStatus(Integer numberPort);
+
+    String deleteDevice(Integer numberPort);
+
+    String getAllDeviceStatus();
 }
