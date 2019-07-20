@@ -7,20 +7,25 @@ import com.smsGenerator.domain.*;
 import com.smsGenerator.repos.DeviceRepos;
 import com.smsGenerator.repos.RequestInfoRepos;
 import com.smsGenerator.repos.SMSQueueRepos;
+import com.smsGenerator.repos.SmsStatusRepos;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
+import java.text.ParseException;
 
 import java.io.IOException;
+import java.util.Date;
+import java.sql.Timestamp;
+import java.text.DateFormat;
+import java.text.SimpleDateFormat;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
-import static com.smsGenerator.utils.Constants.STATUS_FAILED;
-import static com.smsGenerator.utils.Constants.STATUS_OK;
+import static com.smsGenerator.utils.Constants.*;
 
 @Service
 public class SmsGatewayServiceImpl implements SmsGatewayService {
@@ -33,26 +38,40 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
     private RequestInfoRepos requestInfoRepos;
     @Autowired
     private SMSQueueRepos smsQueueRepos;
+    @Autowired
+    private SmsStatusRepos smsStatusRepos;
 
     @Override
-    public String getMessege(List<String> phones, String message) {
+    public List<SmsStatus> sendNewSms(List<String> phones, String message, boolean updateMessageFlag) {
         List<SMSQueue> smsQueue = phones.stream()
-                .map(phone -> new SMSQueue(phone, message))
+                .map(phone -> new SMSQueue(getFormatedPhone(phone), message))
                 .peek(sms -> smsQueueRepos.save(sms))
                 .collect(Collectors.toList());
 
-        for (SMSQueue smsRequest : smsQueue) {
-            SmsStatus smsStatus = generateRequest(smsRequest.getPhone(), smsRequest.getMessage());
-            if (smsStatus != null) {
-                smsQueueRepos.delete(smsRequest);
-            } else {
-                return "Failed!";
-            }
-        }
-        return "Completed!";
+        return generateAndSendSms(smsQueue, updateMessageFlag);
     }
 
-    private SmsStatus generateRequest(String phone, String message) {
+    private List<SmsStatus> generateAndSendSms(List<SMSQueue> smsQueue, boolean updateMessageFlag) {
+
+        List<SmsStatus> SmsStatuses = new ArrayList<>();
+        for (SMSQueue smsRequest : smsQueue) {
+            SmsStatus smsStatus = generateRequest(smsRequest.getPhone(), smsRequest.getMessage(), updateMessageFlag);
+            SmsStatuses.add(smsStatus);
+            if (STATUS_OK.equals(smsStatus.getResult())) {
+                smsQueueRepos.delete(smsRequest);
+            }
+        }
+        smsStatusRepos.saveAll(SmsStatuses);
+        return SmsStatuses;
+    }
+
+    @Override
+    public List<SmsStatus> sendOldSms(List<String> numbers, String message, boolean updateMessage) {
+        List<SMSQueue> smsQueue =smsQueueRepos.findAll();
+        return generateAndSendSms(smsQueue, updateMessage);
+    }
+
+    private SmsStatus generateRequest(String phone, String message, boolean updateMessageFlag) {
         List<Device> devices = deviceRepos.findAll();
         Map<Integer, DeviceWrapper> devicesMap = devices.stream().collect(Collectors.toMap((entry) -> entry.getNumberPort(), (entry) -> generateDeviceWrapper(entry)));
         RequestInfo oldRequestInfo = getOldRequestInfo(devicesMap);
@@ -74,12 +93,32 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
                 devicesMap.get(newRequestInfo.getPort()).getStatus().put(newRequestInfo.getSim(), STATUS_FAILED);
                 e.printStackTrace();
                 saveDeviceStatus(devicesMap, newRequestInfo);
-                return generateRequest(phone, message);
+                return generateRequest(phone, message, updateMessageFlag);
             }
-            return new SmsStatus();
+            return SmsStatus.builder()
+                    .phone(phone)
+                    .message(message)
+                    .result(STATUS_OK)
+                    .numberPort(newRequestInfo.getPort())
+                    .numberSim(newRequestInfo.getSim())
+                    .timestamp_send(generetaData())
+                    .build();
         } else {
-            return null;
+            return SmsStatus.builder()
+                    .phone(phone)
+                    .message(message)
+                    .result(STATUS_ERROR)
+                    .description(DESCRIPTION_NO_WORKING_SIM)
+                    .timestamp_send(generetaData())
+                    .build();
         }
+    }
+
+    private String getFormatedPhone(String phone) {
+        StringBuilder formstPhone = new StringBuilder(phone.replaceAll("[^0-9]", ""));
+        formstPhone.delete(0, formstPhone.length() - 10);
+        formstPhone.insert(0,"8");
+        return formstPhone.toString();
     }
 
     private void saveDeviceStatus(Map<Integer, DeviceWrapper> devicesMap, RequestInfo newRequestInfo) {
@@ -168,5 +207,16 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
                 .getRequestFactory();
         rf.setReadTimeout(timeout);
         rf.setConnectTimeout(timeout);
+    }
+
+    private Timestamp generetaData() {
+        DateFormat formatter = new SimpleDateFormat("dd/MM/yyyy HH:mm");
+        Date date;
+        try {
+            date = formatter.parse(formatter.format(new Date()));
+        } catch (ParseException e) {
+            return null;
+        }
+        return new Timestamp(date.getTime());
     }
 }
