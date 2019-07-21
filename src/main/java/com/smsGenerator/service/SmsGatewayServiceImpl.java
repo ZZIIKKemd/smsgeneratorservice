@@ -42,9 +42,13 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
     private SmsStatusRepos smsStatusRepos;
     @Autowired
     private MessageUpdateService messageUpdateService;
+    @Autowired
+    private UpdateDBService updateDBService;
 
     @Override
     public List<SmsStatus> sendNewSms(List<String> phones, String message, boolean updateMessageFlag) {
+        updateDBService.resetAllDvice();
+
         List<SMSQueue> smsQueue = phones.stream()
                 .map(phone -> new SMSQueue(getFormatedPhone(phone), messageUpdateService.generateNewMessage(message, updateMessageFlag), updateMessageFlag))
                 .peek(sms -> smsQueueRepos.save(sms))

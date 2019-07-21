@@ -13,5 +13,11 @@
       <jdbc-driver>org.postgresql.Driver</jdbc-driver>
       <jdbc-url>jdbc:postgresql://localhost:5432/GeneratorSMSRequest</jdbc-url>
     </data-source>
+    <data-source source="LOCAL" name="cifra@rc1b-398oc7ujwvbfdwf9.mdb.yandexcloud.net" uuid="92d8f634-8b29-42d6-9732-1c5267541134">
+      <driver-ref>postgresql</driver-ref>
+      <synchronize>true</synchronize>
+      <jdbc-driver>org.postgresql.Driver</jdbc-driver>
+      <jdbc-url>jdbc:postgresql://rc1b-398oc7ujwvbfdwf9.mdb.yandexcloud.net:6432/cifra</jdbc-url>
+    </data-source>
   </component>
 </project>
