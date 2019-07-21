@@ -40,22 +40,30 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
     private SMSQueueRepos smsQueueRepos;
     @Autowired
     private SmsStatusRepos smsStatusRepos;
+    @Autowired
+    private MessageUpdateService messageUpdateService;
 
     @Override
     public List<SmsStatus> sendNewSms(List<String> phones, String message, boolean updateMessageFlag) {
         List<SMSQueue> smsQueue = phones.stream()
-                .map(phone -> new SMSQueue(getFormatedPhone(phone), message))
+                .map(phone -> new SMSQueue(getFormatedPhone(phone), messageUpdateService.generateNewMessage(message, updateMessageFlag), updateMessageFlag))
                 .peek(sms -> smsQueueRepos.save(sms))
                 .collect(Collectors.toList());
 
-        return generateAndSendSms(smsQueue, updateMessageFlag);
+        List<SmsStatus> smsStatuses = generateAndSendSms(smsQueue);
+
+        if(STATUS_OK.equals(smsStatuses.get(smsStatuses.size()-1).getResult())) {
+            sendOldSms();
+        }
+
+        return generateAndSendSms(smsQueue);
     }
 
-    private List<SmsStatus> generateAndSendSms(List<SMSQueue> smsQueue, boolean updateMessageFlag) {
+    private List<SmsStatus> generateAndSendSms(List<SMSQueue> smsQueue) {
 
         List<SmsStatus> SmsStatuses = new ArrayList<>();
         for (SMSQueue smsRequest : smsQueue) {
-            SmsStatus smsStatus = generateRequest(smsRequest.getPhone(), smsRequest.getMessage(), updateMessageFlag);
+            SmsStatus smsStatus = generateRequest(smsRequest.getPhone(), smsRequest.getMessage());
             SmsStatuses.add(smsStatus);
             if (STATUS_OK.equals(smsStatus.getResult())) {
                 smsQueueRepos.delete(smsRequest);
@@ -66,12 +74,18 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
     }
 
     @Override
-    public List<SmsStatus> sendOldSms(List<String> numbers, String message, boolean updateMessage) {
+    public List<SmsStatus> sendOldSms() {
         List<SMSQueue> smsQueue =smsQueueRepos.findAll();
-        return generateAndSendSms(smsQueue, updateMessage);
+        return generateAndSendSms(smsQueue);
     }
 
-    private SmsStatus generateRequest(String phone, String message, boolean updateMessageFlag) {
+    @Override
+    public List<SMSQueue> getSmsQueue() {
+        return smsQueueRepos.findAll();
+    }
+
+    private SmsStatus generateRequest(String phone, String message) {
+
         List<Device> devices = deviceRepos.findAll();
         Map<Integer, DeviceWrapper> devicesMap = devices.stream().collect(Collectors.toMap((entry) -> entry.getNumberPort(), (entry) -> generateDeviceWrapper(entry)));
         RequestInfo oldRequestInfo = getOldRequestInfo(devicesMap);
@@ -93,7 +107,7 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
                 devicesMap.get(newRequestInfo.getPort()).getStatus().put(newRequestInfo.getSim(), STATUS_FAILED);
                 e.printStackTrace();
                 saveDeviceStatus(devicesMap, newRequestInfo);
-                return generateRequest(phone, message, updateMessageFlag);
+                return generateRequest(phone, message);
             }
             return SmsStatus.builder()
                     .phone(phone)

@@ -1,5 +1,6 @@
 package com.smsGenerator.controller;
 
+import com.smsGenerator.domain.SMSQueue;
 import com.smsGenerator.domain.SmsStatus;
 import com.smsGenerator.service.SmsGatewayService;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -30,10 +31,14 @@ public class SMSGeneratorController {
     }
 
     @GetMapping("/send-old-sms")
-    public List<SmsStatus> sendOldSMS(@RequestParam(name = PHONE, required = false) List<String> numbers,
-                             @RequestParam(name = MESSAGE, required = false, defaultValue = "") String message,
-                             @RequestParam(value = UPDATE_MESSAGE, required = false, defaultValue = "false") boolean updateMessage) {
-        List<SmsStatus> quote = smsGatewayService.sendOldSms(numbers, message, updateMessage);
+    public List<SmsStatus> sendOldSMS() {
+        List<SmsStatus> quote = smsGatewayService.sendOldSms();
         return quote;
+    }
+
+    @GetMapping("/get-sms-queue")
+    public List<SMSQueue> getSmsQueue() {
+        List<SMSQueue> smsQueue = smsGatewayService.getSmsQueue();
+        return smsQueue;
     }
 }

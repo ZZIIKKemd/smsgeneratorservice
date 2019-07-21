@@ -17,6 +17,21 @@ public class SMSQueue {
     private Integer id;
     private String phone;
     private String message;
+    private Boolean updateMessageFlag;
+
+    public SMSQueue(String phone, String message, Boolean updateMessageFlag) {
+        this.phone = phone;
+        this.message = message;
+        this.updateMessageFlag = updateMessageFlag;
+    }
+
+    public Boolean getUpdateMessageFlag() {
+        return updateMessageFlag;
+    }
+
+    public void setUpdateMessageFlag(Boolean updateMessageFlag) {
+        this.updateMessageFlag = updateMessageFlag;
+    }
 
     public Integer getId() {
         return id;

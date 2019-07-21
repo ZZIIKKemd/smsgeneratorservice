@@ -1,15 +1,16 @@
 package com.smsGenerator.service;
 
 import com.smsGenerator.domain.ManualDevice;
+import com.smsGenerator.domain.RequestStatus;
 
 public interface UpdateDBService {
-    String addPort(ManualDevice manualDevice);
+    RequestStatus addPort(ManualDevice manualDevice);
 
     String getPortStatus(Integer numberPort);
 
-    String deleteDevice(Integer numberPort);
+    RequestStatus deleteDevice(Integer numberPort);
 
     String getAllDeviceStatus();
 
-    String resetAllDvice();
+    RequestStatus resetAllDvice();
 }

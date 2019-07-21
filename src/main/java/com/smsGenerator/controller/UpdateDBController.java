@@ -2,6 +2,7 @@ package com.smsGenerator.controller;
 
 
 import com.smsGenerator.domain.ManualDevice;
+import com.smsGenerator.domain.RequestStatus;
 import com.smsGenerator.repos.DeviceRepos;
 import com.smsGenerator.service.UpdateDBService;
 import lombok.NoArgsConstructor;
@@ -18,7 +19,7 @@ public class UpdateDBController {
     private UpdateDBService updateDBService;
 
     @GetMapping("/add-device")
-    public String settinDevice(
+    public RequestStatus settinDevice(
             @RequestBody ManualDevice data) {
         return updateDBService.addPort(data);
     }
@@ -30,7 +31,7 @@ public class UpdateDBController {
 
 
     @GetMapping("/delete-device")
-    public String deleteDevice(@RequestParam Integer numberPort) {
+    public RequestStatus deleteDevice(@RequestParam Integer numberPort) {
         return updateDBService.deleteDevice(numberPort);
     }
 
@@ -41,7 +42,7 @@ public class UpdateDBController {
     }
 
     @GetMapping("/reset_all-device")
-    public String resetAllDvice() {
+    public RequestStatus resetAllDvice() {
         return updateDBService.resetAllDvice();
     }
 }
