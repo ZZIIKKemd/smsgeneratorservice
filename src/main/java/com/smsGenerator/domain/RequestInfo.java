@@ -15,10 +15,12 @@ public class RequestInfo {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Integer id;
+    private Integer portNumber;
+    private Integer simNumber;
 
     public RequestInfo(Integer port, Integer sim) {
-        this.port = port;
-        this.sim = sim;
+        this.portNumber = port;
+        this.simNumber = sim;
     }
 
     public Integer getId() {
@@ -29,22 +31,19 @@ public class RequestInfo {
         this.id = id;
     }
 
-    Integer port;
-    Integer sim;
-
-    public Integer getPort() {
-        return port;
+    public Integer getPortNumber() {
+        return portNumber;
     }
 
-    public void setPort(Integer port) {
-        this.port = port;
+    public void setPortNumber(Integer portNumber) {
+        this.portNumber = portNumber;
     }
 
-    public Integer getSim() {
-        return sim;
+    public Integer getSimNumber() {
+        return simNumber;
     }
 
-    public void setSim(Integer sim) {
-        this.sim = sim;
+    public void setSimNumber(Integer simNumber) {
+        this.simNumber = simNumber;
     }
 }

@@ -19,5 +19,11 @@
       <jdbc-driver>org.postgresql.Driver</jdbc-driver>
       <jdbc-url>jdbc:postgresql://rc1b-398oc7ujwvbfdwf9.mdb.yandexcloud.net:6432/cifra</jdbc-url>
     </data-source>
+    <data-source source="LOCAL" name="cifra@rc1b-398oc7ujwvbfdwf9.mdb.yandexcloud.net [2]" uuid="f259a0fa-4d43-4bcf-ac89-0d0fbdad786d">
+      <driver-ref>postgresql</driver-ref>
+      <synchronize>true</synchronize>
+      <jdbc-driver>org.postgresql.Driver</jdbc-driver>
+      <jdbc-url>jdbc:postgresql://rc1b-398oc7ujwvbfdwf9.mdb.yandexcloud.net:6432/cifra</jdbc-url>
+    </data-source>
   </component>
 </project>

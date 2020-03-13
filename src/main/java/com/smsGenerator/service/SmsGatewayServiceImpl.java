@@ -8,6 +8,7 @@ import com.smsGenerator.repos.DeviceRepos;
 import com.smsGenerator.repos.RequestInfoRepos;
 import com.smsGenerator.repos.SMSQueueRepos;
 import com.smsGenerator.repos.SmsStatusRepos;
+import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
@@ -27,6 +28,7 @@ import java.util.stream.Collectors;
 
 import static com.smsGenerator.utils.Constants.*;
 
+@Slf4j
 @Service
 public class SmsGatewayServiceImpl implements SmsGatewayService {
 
@@ -47,6 +49,7 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
 
     @Override
     public List<SmsStatus> sendNewSms(List<String> phones, String message, boolean updateMessageFlag) {
+        //todo delete after adding auto sent
         updateDBService.resetAllDvice();
 
         List<SMSQueue> smsQueue = phones.stream()
@@ -56,11 +59,11 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
 
         List<SmsStatus> smsStatuses = generateAndSendSms(smsQueue);
 
-        if(STATUS_OK.equals(smsStatuses.get(smsStatuses.size()-1).getResult())) {
+        if (smsStatuses.size() != 0
+                && smsStatuses.stream().allMatch(smsStatus -> STATUS_OK.equals(smsStatus.getResult()))) {
             sendOldSms();
         }
-
-        return generateAndSendSms(smsQueue);
+        return smsStatuses;
     }
 
     private List<SmsStatus> generateAndSendSms(List<SMSQueue> smsQueue) {
@@ -79,6 +82,7 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
 
     @Override
     public List<SmsStatus> sendOldSms() {
+        updateDBService.resetAllDvice();
         List<SMSQueue> smsQueue =smsQueueRepos.findAll();
         return generateAndSendSms(smsQueue);
     }
@@ -91,16 +95,16 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
     private SmsStatus generateRequest(String phone, String message) {
 
         List<Device> devices = deviceRepos.findAll();
-        Map<Integer, DeviceWrapper> devicesMap = devices.stream().collect(Collectors.toMap((entry) -> entry.getNumberPort(), (entry) -> generateDeviceWrapper(entry)));
-        RequestInfo oldRequestInfo = getOldRequestInfo(devicesMap);
-        RequestInfo newRequestInfo = getNewRequestInfo(oldRequestInfo, devicesMap);
+        Map<Integer, DeviceWrapper> mapDeviceWrapperByPort = devices.stream()
+                .collect(Collectors.toMap(Device::getNumberPort, this::generateDeviceWrapper));
+        RequestInfo oldRequestInfo = getOldRequestInfo(mapDeviceWrapperByPort);
+        RequestInfo newRequestInfo = getNewRequestInfo(oldRequestInfo, mapDeviceWrapperByPort);
 
         if (newRequestInfo != null) {
-            StringBuilder requestAddress = generateStringRequest(newRequestInfo.getPort(), newRequestInfo.getSim(), phone, message);
+            StringBuilder requestAddress = generateStringRequest(newRequestInfo.getPortNumber(), newRequestInfo.getSimNumber(), phone, message);
 
             RestTemplate restTemplate = new RestTemplate();
             setTimeout(restTemplate, 1000);
-            System.out.println(requestAddress);
             requestInfoRepos.save(newRequestInfo);
             try {
                 String statusRequest = restTemplate.getForObject(requestAddress.toString(), String.class);
@@ -108,17 +112,17 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
                     throw new Exception();
                 }
             } catch (Exception e) {
-                devicesMap.get(newRequestInfo.getPort()).getStatus().put(newRequestInfo.getSim(), STATUS_FAILED);
-                e.printStackTrace();
-                saveDeviceStatus(devicesMap, newRequestInfo);
+                log.info("Port: {}, sim: {} don't work.", newRequestInfo.getPortNumber(), newRequestInfo.getSimNumber());
+                mapDeviceWrapperByPort.get(newRequestInfo.getPortNumber()).getStatus().put(newRequestInfo.getSimNumber(), STATUS_FAILED);
+                saveDeviceStatus(mapDeviceWrapperByPort, newRequestInfo);
                 return generateRequest(phone, message);
             }
             return SmsStatus.builder()
                     .phone(phone)
                     .message(message)
                     .result(STATUS_OK)
-                    .numberPort(newRequestInfo.getPort())
-                    .numberSim(newRequestInfo.getSim())
+                    .numberPort(newRequestInfo.getPortNumber())
+                    .numberSim(newRequestInfo.getSimNumber())
                     .timestamp_send(generetaData())
                     .build();
         } else {
@@ -139,12 +143,12 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
         return formstPhone.toString();
     }
 
-    private void saveDeviceStatus(Map<Integer, DeviceWrapper> devicesMap, RequestInfo newRequestInfo) {
-        Object objectTosave = devicesMap.get(newRequestInfo.getPort()).getStatus();
+    private void saveDeviceStatus(Map<Integer, DeviceWrapper> mapDeviceWrapperByPort, RequestInfo newRequestInfo) {
+        Object objectToSave = mapDeviceWrapperByPort.get(newRequestInfo.getPortNumber()).getStatus();
         try {
-            String jsonStatus = afterBurnerMapper.writeValueAsString(objectTosave);
-            devicesMap.get(newRequestInfo.getPort()).getDevice().setStatus(jsonStatus);
-            Device device = devicesMap.get(newRequestInfo.getPort()).getDevice();
+            String jsonStatus = afterBurnerMapper.writeValueAsString(objectToSave);
+            mapDeviceWrapperByPort.get(newRequestInfo.getPortNumber()).getDevice().setStatus(jsonStatus);
+            Device device = mapDeviceWrapperByPort.get(newRequestInfo.getPortNumber()).getDevice();
             device.setStatus(jsonStatus);
             deviceRepos.save(device);
         } catch (JsonProcessingException e) {
@@ -172,25 +176,33 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
         return requestAddress;
     }
 
-    private RequestInfo getOldRequestInfo(Map<Integer, DeviceWrapper> devicesMap) {
+    private RequestInfo getOldRequestInfo(Map<Integer, DeviceWrapper> mapDeviceWrapperByPort) {
         List<RequestInfo> oldRequestInfos = requestInfoRepos.findAll();
         RequestInfo oldRequestInfo;
         if (oldRequestInfos.isEmpty()) {
-            oldRequestInfo = new RequestInfo(devicesMap.values().stream().findFirst().orElse(null).getDevice().getNumberPort(), 0);
+            DeviceWrapper deviceWrapper = mapDeviceWrapperByPort.values().stream().findFirst().orElse(null);
+            if(deviceWrapper == null) {
+                throw new IllegalArgumentException("Не определены шлюзы! Добавте рабочие шлюзы.");
+            }
+            oldRequestInfo = new RequestInfo(deviceWrapper.getDevice().getNumberPort(), 0);
         } else {
-            oldRequestInfo = oldRequestInfos.stream().findFirst().orElse(null);
+            oldRequestInfo = oldRequestInfos.get(0);
         }
         return oldRequestInfo;
     }
 
-    private RequestInfo getNewRequestInfo(RequestInfo oldRequestInfo, Map<Integer, DeviceWrapper> devicesMap) {
-        Integer indexPort = null;
-        Integer indexSim = oldRequestInfo.getSim();
+    private RequestInfo getNewRequestInfo(RequestInfo oldRequestInfo, Map<Integer, DeviceWrapper> mapDeviceWrapperByPort) {
 
-        List<DeviceWrapper> listWrapper = new ArrayList<DeviceWrapper>(devicesMap.values());
-        List<Integer> keys = new ArrayList<Integer>(devicesMap.keySet());
+//        DeviceWrapper deviceWrapper = mapDeviceWrapperByPort.get(oldRequestInfo.getPortNumber());
+//        if (deviceWrapper.getDevice().getNumberSim() == (oldRequestInfo.getSimNumber() + 1) {
+//        }
+        Integer indexPort = null;
+        Integer indexSim = oldRequestInfo.getSimNumber();
+
+        List<DeviceWrapper> listWrapper = new ArrayList(mapDeviceWrapperByPort.values());
+        List<Integer> keys = new ArrayList(mapDeviceWrapperByPort.keySet());
         for (int i = 0; i < keys.size(); i++) {
-            if (keys.get(i) == oldRequestInfo.getPort()) {
+            if (keys.get(i) == oldRequestInfo.getPortNumber()) {
                 indexPort = i;
                 break;
             }
@@ -198,7 +210,7 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
         if (indexPort == null) {
             indexPort = 0;
         }
-        final int sizePortMap = devicesMap.size();
+        final int sizePortMap = mapDeviceWrapperByPort.size();
         for (int i = 0; i < sizePortMap; i++) {
             for (int j = 0; j < listWrapper.get(indexPort).getDevice().getNumberSim(); j++) {
                 if (indexSim == (listWrapper.get(indexPort).getDevice().getNumberSim() - 1)) {
@@ -211,7 +223,7 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
                 } else {
                     indexSim++;
                 }
-                if (devicesMap.get(listWrapper.get(indexPort).getDevice().getNumberPort()).getStatus().get(indexSim).equals(STATUS_OK)) {
+                if (mapDeviceWrapperByPort.get(listWrapper.get(indexPort).getDevice().getNumberPort()).getStatus().get(indexSim).equals(STATUS_OK)) {
                     return new RequestInfo(oldRequestInfo.getId(), listWrapper.get(indexPort).getDevice().getNumberPort(), indexSim);
                 }
             }

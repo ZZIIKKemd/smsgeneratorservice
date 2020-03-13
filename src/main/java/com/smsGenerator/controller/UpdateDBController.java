@@ -24,17 +24,15 @@ public class UpdateDBController {
         return updateDBService.addPort(data);
     }
 
-    @GetMapping("/get-status-device")
-    public String getStatusDevice(@RequestParam Integer numberPort) {
-        return updateDBService.getPortStatus(numberPort);
-    }
-
-
     @GetMapping("/delete-device")
     public RequestStatus deleteDevice(@RequestParam Integer numberPort) {
         return updateDBService.deleteDevice(numberPort);
     }
 
+    @GetMapping("/get-status-device")
+    public String getStatusDevice(@RequestParam Integer numberPort) {
+        return updateDBService.getPortStatus(numberPort);
+    }
 
     @GetMapping("/all-device")
     public String getAllDevice() {
