@@ -1,4 +1,4 @@
-package com.smsGenerator.service;
+package com.smsGenerator.Implementation;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -6,6 +6,7 @@ import com.smsGenerator.domain.Device;
 import com.smsGenerator.domain.ManualDevice;
 import com.smsGenerator.domain.RequestStatus;
 import com.smsGenerator.repos.DeviceRepos;
+import com.smsGenerator.service.UpdateDBService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -22,7 +23,7 @@ import static com.smsGenerator.utils.Constants.STATUS_ERROR;
 import static com.smsGenerator.utils.Constants.STATUS_OK;
 
 @Service
-public class UpdateDBServiceImpl implements  UpdateDBService{
+public class UpdateDBServiceImpl implements UpdateDBService {
 
     @Autowired
     private DeviceRepos deviceRepos;

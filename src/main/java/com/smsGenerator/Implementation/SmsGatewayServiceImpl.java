@@ -1,4 +1,4 @@
-package com.smsGenerator.service;
+package com.smsGenerator.Implementation;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
@@ -6,12 +6,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smsGenerator.domain.*;
 import com.smsGenerator.repos.DeviceRepos;
 import com.smsGenerator.repos.RequestInfoRepos;
-import com.smsGenerator.repos.SMSQueueRepos;
 import com.smsGenerator.repos.SmsStatusRepos;
+import com.smsGenerator.service.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
+import org.springframework.util.CollectionUtils;
 import org.springframework.web.client.RestTemplate;
 import java.text.ParseException;
 
@@ -39,7 +40,7 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
     @Autowired
     private RequestInfoRepos requestInfoRepos;
     @Autowired
-    private SMSQueueRepos smsQueueRepos;
+    private DataBaseService dataBaseService;
     @Autowired
     private SmsStatusRepos smsStatusRepos;
     @Autowired
@@ -47,93 +48,84 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
     @Autowired
     private UpdateDBService updateDBService;
 
-    @Override
-    public List<SmsStatus> sendNewSms(List<String> phones, String message, boolean updateMessageFlag) {
-        //todo delete after adding auto sent
-        updateDBService.resetAllDvice();
+    @Autowired
+    private AddressSerice addressSerice;
 
-        List<SMSQueue> smsQueue = phones.stream()
+    @Override
+    public boolean addNewSms(List<String> phones, String message, boolean updateMessageFlag) {
+        return dataBaseService.saveNewSms(phones.stream()
                 .map(phone -> new SMSQueue(getFormatedPhone(phone), messageUpdateService.generateNewMessage(message, updateMessageFlag), updateMessageFlag))
-                .peek(sms -> smsQueueRepos.save(sms))
-                .collect(Collectors.toList());
-
-        List<SmsStatus> smsStatuses = generateAndSendSms(smsQueue);
-
-        if (smsStatuses.size() != 0
-                && smsStatuses.stream().allMatch(smsStatus -> STATUS_OK.equals(smsStatus.getResult()))) {
-            sendOldSms();
-        }
-        return smsStatuses;
-    }
-
-    private List<SmsStatus> generateAndSendSms(List<SMSQueue> smsQueue) {
-
-        List<SmsStatus> SmsStatuses = new ArrayList<>();
-        for (SMSQueue smsRequest : smsQueue) {
-            SmsStatus smsStatus = generateRequest(smsRequest.getPhone(), smsRequest.getMessage());
-            SmsStatuses.add(smsStatus);
-            if (STATUS_OK.equals(smsStatus.getResult())) {
-                smsQueueRepos.delete(smsRequest);
-            }
-        }
-        smsStatusRepos.saveAll(SmsStatuses);
-        return SmsStatuses;
-    }
-
-    @Override
-    public List<SmsStatus> sendOldSms() {
-        updateDBService.resetAllDvice();
-        List<SMSQueue> smsQueue =smsQueueRepos.findAll();
-        return generateAndSendSms(smsQueue);
+                .collect(Collectors.toList()));
     }
 
     @Override
     public List<SMSQueue> getSmsQueue() {
-        return smsQueueRepos.findAll();
+        return dataBaseService.getAllQueueSms();
     }
 
-    private SmsStatus generateRequest(String phone, String message) {
-
+    @Override
+    public void sendSms() {
+        //todo
+        updateDBService.resetAllDvice();
         List<Device> devices = deviceRepos.findAll();
-        Map<Integer, DeviceWrapper> mapDeviceWrapperByPort = devices.stream()
-                .collect(Collectors.toMap(Device::getNumberPort, this::generateDeviceWrapper));
-        RequestInfo oldRequestInfo = getOldRequestInfo(mapDeviceWrapperByPort);
-        RequestInfo newRequestInfo = getNewRequestInfo(oldRequestInfo, mapDeviceWrapperByPort);
+        Integer maxCountSimCard = devices.stream()
+                .mapToInt(Device::getNumberSim)
+                .sum();
+        List<SMSQueue> smsQueue = dataBaseService.getAllQueueSms(maxCountSimCard);
+        generateAndSendSms(smsQueue, devices);
+    }
 
-        if (newRequestInfo != null) {
-            StringBuilder requestAddress = generateStringRequest(newRequestInfo.getPortNumber(), newRequestInfo.getSimNumber(), phone, message);
+    private void generateAndSendSms(List<SMSQueue> smsQueue, List<Device> devices) {
+        devices.stream()
+                .forEach(device -> {
+                    SmsStatus smsStatus;
+                    for (int simNumber = 1; simNumber <= device.getNumberSim(); simNumber++) {
+                        if(!CollectionUtils.isEmpty(smsQueue)) {
+                            smsStatus = generateRequest(smsQueue.get(0).getPhone(), smsQueue.get(0).getMessage(), device.getNumberPort(), simNumber);
+                            if (smsStatus != null) {
+                                if ( STATUS_OK.equals(smsStatus.getResult())) {
+                                    dataBaseService.deleteSms(smsQueue.get(0));
+                                    smsQueue.remove(0);
+                                }
+                                smsStatusRepos.save(smsStatus);
+                            }
+                        } else {
+                            break;
+                        }
+                    }
+                });
+    }
 
-            RestTemplate restTemplate = new RestTemplate();
-            setTimeout(restTemplate, 1000);
-            requestInfoRepos.save(newRequestInfo);
-            try {
-                String statusRequest = restTemplate.getForObject(requestAddress.toString(), String.class);
-                if(statusRequest.contains("ERROR")){
-                    throw new Exception();
-                }
-            } catch (Exception e) {
-                log.info("Port: {}, sim: {} don't work.", newRequestInfo.getPortNumber(), newRequestInfo.getSimNumber());
-                mapDeviceWrapperByPort.get(newRequestInfo.getPortNumber()).getStatus().put(newRequestInfo.getSimNumber(), STATUS_FAILED);
-                saveDeviceStatus(mapDeviceWrapperByPort, newRequestInfo);
-                return generateRequest(phone, message);
+
+    private SmsStatus generateRequest(String phone, String message, Integer numberPotr, Integer simNumber) {
+        String requestAddress = generateStringRequest(numberPotr, simNumber, phone, message);
+        RestTemplate restTemplate = new RestTemplate();
+        setTimeout(restTemplate, 2000);
+        try {
+            String statusRequest = restTemplate.getForObject(requestAddress, String.class);
+            if(statusRequest.contains("ERROR")){
+                throw new Exception();
             }
-            return SmsStatus.builder()
-                    .phone(phone)
-                    .message(message)
-                    .result(STATUS_OK)
-                    .numberPort(newRequestInfo.getPortNumber())
-                    .numberSim(newRequestInfo.getSimNumber())
-                    .timestamp_send(generetaData())
-                    .build();
-        } else {
+        } catch (Exception e) {
+            log.info("Port: {}, sim: {} don't work.", numberPotr, simNumber);
             return SmsStatus.builder()
                     .phone(phone)
                     .message(message)
                     .result(STATUS_ERROR)
                     .description(DESCRIPTION_NO_WORKING_SIM)
+                    .numberPort(numberPotr)
+                    .numberSim(simNumber)
                     .timestamp_send(generetaData())
                     .build();
         }
+        return SmsStatus.builder()
+                .phone(phone)
+                .message(message)
+                .result(STATUS_OK)
+                .numberPort(numberPotr)
+                .numberSim(simNumber)
+                .timestamp_send(generetaData())
+                .build();
     }
 
     private String getFormatedPhone(String phone) {
@@ -143,37 +135,8 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
         return formstPhone.toString();
     }
 
-    private void saveDeviceStatus(Map<Integer, DeviceWrapper> mapDeviceWrapperByPort, RequestInfo newRequestInfo) {
-        Object objectToSave = mapDeviceWrapperByPort.get(newRequestInfo.getPortNumber()).getStatus();
-        try {
-            String jsonStatus = afterBurnerMapper.writeValueAsString(objectToSave);
-            mapDeviceWrapperByPort.get(newRequestInfo.getPortNumber()).getDevice().setStatus(jsonStatus);
-            Device device = mapDeviceWrapperByPort.get(newRequestInfo.getPortNumber()).getDevice();
-            device.setStatus(jsonStatus);
-            deviceRepos.save(device);
-        } catch (JsonProcessingException e) {
-            e.printStackTrace();
-        }
-    }
-
-    private DeviceWrapper generateDeviceWrapper(Device entry) {
-        try {
-            Map<Integer, String> statusMap = new ObjectMapper().readValue(entry.getStatus(), new TypeReference<Map<Integer, String>>() {
-            });
-            return new DeviceWrapper(entry, statusMap);
-        } catch (IOException e) {
-            e.printStackTrace();
-            return new DeviceWrapper(entry, Collections.emptyMap());
-        }
-    }
-
-    private StringBuilder generateStringRequest(Integer numberPort, Integer sim, String phone, String message) {
-        StringBuilder requestAddress = new StringBuilder("http://87.244.1.90:/default/en_US/send.html?u=admin&p=sms_93_ZAK_322ZAK933&l=&n=&m=");
-        requestAddress.insert(83, message);
-        requestAddress.insert(80, phone);
-        requestAddress.insert(77, sim+1);
-        requestAddress.insert(19, numberPort);
-        return requestAddress;
+    private String generateStringRequest(Integer numberPort, Integer sim, String phone, String message) {
+        return addressSerice.getAddress(message, phone, sim, numberPort);
     }
 
     private RequestInfo getOldRequestInfo(Map<Integer, DeviceWrapper> mapDeviceWrapperByPort) {

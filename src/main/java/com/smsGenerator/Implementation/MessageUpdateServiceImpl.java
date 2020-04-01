@@ -1,5 +1,6 @@
-package com.smsGenerator.service;
+package com.smsGenerator.Implementation;
 
+import com.smsGenerator.service.MessageUpdateService;
 import org.springframework.stereotype.Service;
 
 import java.util.Map;

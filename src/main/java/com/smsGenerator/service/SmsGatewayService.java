@@ -6,10 +6,9 @@ import com.smsGenerator.domain.SmsStatus;
 import java.util.List;
 
 public interface SmsGatewayService {
+    boolean addNewSms(List<String> phone, String message, boolean updateMessageFlag);
 
-    List<SmsStatus> sendNewSms(List<String> phone, String message, boolean updateMessageFlag);
-
-    List<SmsStatus> sendOldSms();
+    void sendSms();
 
     List<SMSQueue> getSmsQueue();
 }

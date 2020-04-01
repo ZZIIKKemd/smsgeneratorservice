@@ -23,17 +23,10 @@ public class SMSGeneratorController {
     private SmsGatewayService smsGatewayService;
 
     @GetMapping("/generate-sms")
-    public List<SmsStatus> generateRequest(@RequestParam(name = PHONE, required = false) List<String> numbers,
+    public boolean generateRequest(@RequestParam(name = PHONE, required = false) List<String> numbers,
                                   @RequestParam(name = MESSAGE, required = false, defaultValue = "") String message,
                                   @RequestParam(value = UPDATE_MESSAGE, required = false) boolean updateMessage) {
-        List<SmsStatus> statuses = smsGatewayService.sendNewSms(numbers, message, updateMessage);
-        return statuses;
-    }
-
-    @GetMapping("/send-old-sms")
-    public List<SmsStatus> sendOldSMS() {
-        List<SmsStatus> quote = smsGatewayService.sendOldSms();
-        return quote;
+        return smsGatewayService.addNewSms(numbers, message, updateMessage);
     }
 
     @GetMapping("/get-sms-queue")
