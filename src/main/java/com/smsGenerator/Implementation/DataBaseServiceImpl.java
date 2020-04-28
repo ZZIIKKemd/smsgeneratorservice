@@ -4,6 +4,7 @@ import com.smsGenerator.domain.SMSQueue;
 import com.smsGenerator.repos.SMSQueueRepos;
 import com.smsGenerator.service.DataBaseService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Example;
 import org.springframework.stereotype.Service;
 
 import java.util.List;
@@ -28,6 +29,15 @@ public class DataBaseServiceImpl implements DataBaseService {
         List<SMSQueue> smsQueue;
         synchronized(obj) {
             smsQueue = smsQueueRepos.findAll();
+        }
+        return smsQueue;
+    }
+
+    @Override
+    public List<SMSQueue> getAllQueueSms(Example<SMSQueue> exampleQueue) {
+        List<SMSQueue> smsQueue;
+        synchronized(obj) {
+            smsQueue = smsQueueRepos.findAll(exampleQueue);
         }
         return smsQueue;
     }

@@ -10,10 +10,13 @@ import com.smsGenerator.repos.SmsStatusRepos;
 import com.smsGenerator.service.*;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.Example;
+import org.springframework.data.util.Pair;
 import org.springframework.http.client.SimpleClientHttpRequestFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.util.CollectionUtils;
 import org.springframework.web.client.RestTemplate;
+
 import java.text.ParseException;
 
 import java.io.IOException;
@@ -73,35 +76,45 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
 
     @Override
     public void sendSms() {
-        //todo
         updateDBService.resetAllDvice();
         List<Device> devices = deviceRepos.findAll();
         Integer maxCountSimCard = devices.stream()
                 .mapToInt(Device::getNumberSim)
                 .sum();
-        List<SMSQueue> smsQueue = dataBaseService.getAllQueueSms(maxCountSimCard);
-        generateAndSendSms(smsQueue, devices);
-    }
+        
+        List<Pair<Device, List<SMSQueue>>> smsQueueByDevice = new ArrayList<Pair<Device, List<SMSQueue>>>();
+        for (Device device : devices) {
+            SMSQueue specificQueue = new SMSQueue();
+            specificQueue.setPort(device.getNumberPort());
+            List<SMSQueue> smsQueue = dataBaseService.getAllQueueSms(Example.of(specificQueue));
+            Pair<Device, List<SMSQueue>> deviceQueuePair = Pair.of(device, smsQueue);
+            smsQueueByDevice.add(deviceQueuePair);
+        }
 
-    private void generateAndSendSms(List<SMSQueue> smsQueue, List<Device> devices) {
-        devices.stream()
-                .forEach(device -> {
-                    SmsStatus smsStatus;
-                    for (int simNumber = 1; simNumber <= device.getNumberSim(); simNumber++) {
-                        if(!CollectionUtils.isEmpty(smsQueue)) {
-                            smsStatus = generateRequest(smsQueue.get(0).getPhone(), smsQueue.get(0).getMessage(), device.getNumberPort(), simNumber);
-                            if (smsStatus != null) {
-                                if ( STATUS_OK.equals(smsStatus.getResult())) {
-                                    dataBaseService.deleteSms(smsQueue.get(0));
-                                    smsQueue.remove(0);
-                                }
-                                smsStatusRepos.save(smsStatus);
-                            }
-                        } else {
-                            break;
+        for (Pair<Device, List<SMSQueue>> deviceQueuePair : smsQueueByDevice) {
+            SmsStatus smsStatus;
+            Device device = deviceQueuePair.getFirst();
+            List<SMSQueue> smsQueue = deviceQueuePair.getSecond();
+            for (int simNumber = 1; simNumber <= device.getNumberSim(); simNumber++) {
+                if(!CollectionUtils.isEmpty(smsQueue)) {
+                    smsStatus = generateRequest(
+                        smsQueue.get(0).getPhone(),
+                        smsQueue.get(0).getMessage(),
+                        smsQueue.get(0).getPort(),
+                        simNumber);
+                    if (smsStatus != null) {
+                        if (STATUS_OK.equals(smsStatus.getResult())) {
+                            dataBaseService.deleteSms(smsQueue.get(0));
+                            smsQueue.remove(0);
                         }
+                        smsStatusRepos.save(smsStatus);
                     }
-                });
+                } else {
+                    break;
+                }
+            }
+        }
+
     }
 
 
