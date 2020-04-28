@@ -14,7 +14,7 @@ import java.util.List;
 import static com.smsGenerator.utils.Constants.MESSAGE;
 import static com.smsGenerator.utils.Constants.PHONE;
 import static com.smsGenerator.utils.Constants.UPDATE_MESSAGE;
-
+import static com.smsGenerator.utils.Constants.PORT;
 
 @RestController("Generate requests")
 @RequestMapping()
@@ -23,10 +23,11 @@ public class SMSGeneratorController {
     private SmsGatewayService smsGatewayService;
 
     @GetMapping("/generate-sms")
-    public boolean generateRequest(@RequestParam(name = PHONE, required = false) List<String> numbers,
-                                  @RequestParam(name = MESSAGE, required = false, defaultValue = "") String message,
-                                  @RequestParam(value = UPDATE_MESSAGE, required = false) boolean updateMessage) {
-        return smsGatewayService.addNewSms(numbers, message, updateMessage);
+    public boolean generateRequest(@RequestParam(name = PORT, required = false) Integer port,
+            @RequestParam(name = PHONE, required = false) List<String> numbers,
+            @RequestParam(name = MESSAGE, required = false, defaultValue = "") String message,
+            @RequestParam(value = UPDATE_MESSAGE, required = false) boolean updateMessage) {
+        return smsGatewayService.addNewSms(port, numbers, message, updateMessage);
     }
 
     @GetMapping("/get-sms-queue")

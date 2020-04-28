@@ -15,11 +15,13 @@ public class SMSQueue {
     @Id
     @GeneratedValue(strategy = GenerationType.AUTO)
     private Integer id;
+    private Integer port;
     private String phone;
     private String message;
     private Boolean updateMessageFlag;
 
-    public SMSQueue(String phone, String message, Boolean updateMessageFlag) {
+    public SMSQueue(Integer port, String phone, String message, Boolean updateMessageFlag) {
+        this.port = port;
         this.phone = phone;
         this.message = message;
         this.updateMessageFlag = updateMessageFlag;
@@ -41,6 +43,14 @@ public class SMSQueue {
         this.id = id;
     }
 
+    public Integer getPort() {
+        return port;
+    }
+
+    public void setPort(Integer port) {
+        this.port = port;
+    }
+
     public String getPhone() {
         return phone;
     }
@@ -57,7 +67,8 @@ public class SMSQueue {
         this.message = message;
     }
 
-    public SMSQueue(String phone, String message) {
+    public SMSQueue(Integer port, String phone, String message) {
+        this.port = port;
         this.phone = phone;
         this.message = message;
     }
