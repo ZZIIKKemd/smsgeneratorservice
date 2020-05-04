@@ -56,16 +56,9 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
 
     @Override
     public boolean addNewSms(Integer port, List<String> phones, String message, boolean updateMessageFlag) {
-        List<Device> devices = deviceRepos.findAll();
-        for (Device device : devices) {
-            if (device.getNumberPort().equals(port)) {
-                return dataBaseService.saveNewSms(phones.stream()
-                    .map(phone -> new SMSQueue(port, getFormatedPhone(phone), messageUpdateService.generateNewMessage(message, updateMessageFlag), updateMessageFlag))
-                    .collect(Collectors.toList()));
-            }
-        }
-
-        return false;
+        return dataBaseService.saveNewSms(phones.stream()
+            .map(phone -> new SMSQueue(port, getFormatedPhone(phone), messageUpdateService.generateNewMessage(message, updateMessageFlag), updateMessageFlag))
+            .collect(Collectors.toList()));
         
     }
 
