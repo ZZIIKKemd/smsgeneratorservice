@@ -35,14 +35,13 @@ public class PostmanServiceImpl implements PostmanService {
             @Override
             public void run() {
                 while (true) {
-                    if (go) {
-                        smsGatewayService.sendSms();
-                    }
                     try {
-//                        Thread.sleep(1000);
                         Thread.sleep(180000);
                     } catch (InterruptedException e) {
                         e.printStackTrace();
+                    }
+                    if (go) {
+                        smsGatewayService.sendSms();
                     }
                 }
             }
