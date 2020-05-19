@@ -7,6 +7,7 @@ import com.smsGenerator.domain.ManualDevice;
 import com.smsGenerator.domain.RequestStatus;
 import com.smsGenerator.repos.DeviceRepos;
 import com.smsGenerator.service.UpdateDBService;
+import com.smsGenerator.utils.DeviceType;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
@@ -43,12 +44,17 @@ public class UpdateDBServiceImpl implements UpdateDBService {
                 if(deviceRepos.findByNumberPort(manualDevice.getNumberPort()) != null) {
                     return new RequestStatus(STATUS_ERROR, "Port with this number already exists!");
                 }
+                try {
+                    DeviceType.valueOf(manualDevice.getType());
+                } catch (IllegalArgumentException e) {
+                    return new RequestStatus(STATUS_ERROR, "Unknown device type!");
+                }
                 Integer numberPhone = manualDevice.getNumberSIM();
                 Map<Integer, String> status =  new HashMap<>();
                 IntStream.range(0, numberPhone).forEach(i -> status.put(i, STATUS_OK));
                 try {
                     final String jsonString = afterBurnerMapper.writeValueAsString(status);
-                    Device device = new Device(manualDevice.getNumberPort(), manualDevice.getNumberSIM(), jsonString);
+                    Device device = new Device(manualDevice.getNumberPort(), manualDevice.getNumberSIM(), jsonString, manualDevice.getType());
                     deviceRepos.save(device);
                 } catch (JsonProcessingException e) {
                     e.printStackTrace();

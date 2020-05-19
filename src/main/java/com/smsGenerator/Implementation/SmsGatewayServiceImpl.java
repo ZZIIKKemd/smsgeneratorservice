@@ -91,6 +91,7 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
             for (int simNumber = 1; simNumber <= device.getNumberSim(); simNumber++) {
                 if(!CollectionUtils.isEmpty(smsQueue)) {
                     smsStatus = generateRequest(
+                        device.getType(),
                         smsQueue.get(0).getPhone(),
                         smsQueue.get(0).getMessage(),
                         smsQueue.get(0).getPort(),
@@ -111,8 +112,8 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
     }
 
 
-    private SmsStatus generateRequest(String phone, String message, Integer numberPotr, Integer simNumber) {
-        String requestAddress = generateStringRequest(numberPotr, simNumber, phone, message);
+    private SmsStatus generateRequest(String deviceType, String phone, String message, Integer numberPotr, Integer simNumber) {
+        String requestAddress = generateStringRequest(deviceType, numberPotr, simNumber, phone, message);
         RestTemplate restTemplate = new RestTemplate();
         setTimeout(restTemplate, 2000);
         try {
@@ -149,8 +150,8 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
         return formstPhone.toString();
     }
 
-    private String generateStringRequest(Integer numberPort, Integer sim, String phone, String message) {
-        return addressSerice.getAddress(message, phone, sim, numberPort);
+    private String generateStringRequest(String deviceType, Integer numberPort, Integer sim, String phone, String message) {
+        return addressSerice.getAddress(deviceType, message, phone, sim, numberPort);
     }
 
     private RequestInfo getOldRequestInfo(Map<Integer, DeviceWrapper> mapDeviceWrapperByPort) {

@@ -9,4 +9,5 @@ public class ManualDevice {
     String action;
     Integer numberPort;
     Integer numberSIM;
+    String type;
 }

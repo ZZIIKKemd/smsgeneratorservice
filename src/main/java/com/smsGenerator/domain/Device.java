@@ -13,6 +13,7 @@ public class Device {
     private Integer numberPort;
     private Integer numberSim;
     private String status;
+    private String type;
 
     public Integer getId() {
         return id;
@@ -46,12 +47,21 @@ public class Device {
         this.status = status;
     }
 
+    public String getType() {
+        return type;
+    }
+
+    public void setType(String type) {
+        this.type = type;
+    }
+
     public Device() {
     }
 
-    public Device(Integer numberPort, Integer numberSim, String status) {
+    public Device(Integer numberPort, Integer numberSim, String status, String type) {
         this.numberPort = numberPort;
         this.numberSim = numberSim;
         this.status = status;
+        this.type = type;
     }
 }
