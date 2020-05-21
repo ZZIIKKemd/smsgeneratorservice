@@ -1,3 +1,3 @@
 package com.smsGenerator.utils;
 
-public enum DeviceType {GOIP;}
+public enum DeviceType {GOIP, OPENVOX;}

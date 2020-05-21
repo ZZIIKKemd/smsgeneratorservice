@@ -8,6 +8,8 @@ import com.smsGenerator.repos.DeviceRepos;
 import com.smsGenerator.repos.RequestInfoRepos;
 import com.smsGenerator.repos.SmsStatusRepos;
 import com.smsGenerator.service.*;
+import com.smsGenerator.utils.DeviceType;
+
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.Example;
@@ -115,10 +117,14 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
     private SmsStatus generateRequest(String deviceType, String phone, String message, Integer numberPotr, Integer simNumber) {
         String requestAddress = generateStringRequest(deviceType, numberPotr, simNumber, phone, message);
         RestTemplate restTemplate = new RestTemplate();
-        setTimeout(restTemplate, 2000);
+        setTimeout(restTemplate, 30000);
         try {
             String statusRequest = restTemplate.getForObject(requestAddress, String.class);
-            if(statusRequest.contains("ERROR")){
+            DeviceType type = DeviceType.valueOf(deviceType);
+            if(type.equals(DeviceType.GOIP) && statusRequest.contains("ERROR")){
+                throw new Exception();
+            }
+            if(type.equals(DeviceType.OPENVOX) && !statusRequest.contains("success")){
                 throw new Exception();
             }
         } catch (Exception e) {

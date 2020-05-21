@@ -24,6 +24,18 @@ public class AddressServiceImpl implements AddressSerice {
                     .append("&m=")
                     .append(message).toString();
         }
+        if (type.equals(DeviceType.OPENVOX)) {
+            return new StringBuilder("http://")
+                    .append(address)
+                    .append(":")
+                    .append(numberPort)
+                    .append("/sendsms?username=admin&password=sms_93_ZAK_322ZAK933&port=gsm-1.")
+                    .append(simNumber)
+                    .append("&phonenumber=")
+                    .append(phone)
+                    .append("&message=")
+                    .append(message).toString();
+        }
         return "ERROR: Shouldn't even be here!";
     }
 }
