@@ -4,6 +4,7 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.smsGenerator.domain.*;
+import com.smsGenerator.exception.*;
 import com.smsGenerator.repos.DeviceRepos;
 import com.smsGenerator.repos.RequestInfoRepos;
 import com.smsGenerator.repos.SmsStatusRepos;
@@ -103,6 +104,10 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
                             dataBaseService.deleteSms(smsQueue.get(0));
                             smsQueue.remove(0);
                         }
+                        if (DESCRIPTION_NOT_DELIEVERED.equals(smsStatus.getDescription())) {
+                            dataBaseService.deleteSms(smsQueue.get(0));
+                            smsQueue.remove(0);
+                        }
                         smsStatusRepos.save(smsStatus);
                     }
                 } else {
@@ -122,12 +127,37 @@ public class SmsGatewayServiceImpl implements SmsGatewayService {
             String statusRequest = restTemplate.getForObject(requestAddress, String.class);
             DeviceType type = DeviceType.valueOf(deviceType);
             if(type.equals(DeviceType.GOIP) && statusRequest.contains("ERROR")){
-                throw new Exception();
+                throw new GoipFailedException();
+            }
+            if(type.equals(DeviceType.OPENVOX) && statusRequest.contains("\"result\":\"fail\"")){
+                throw new OpenvoxUndeliveredException();
             }
             if(type.equals(DeviceType.OPENVOX) && !statusRequest.contains("success")){
-                throw new Exception();
+                throw new OpenvoxFailedException();
             }
-        } catch (Exception e) {
+        } catch (GoipFailedException e) {
+            log.info("Port: {}, sim: {} don't work.", numberPotr, simNumber);
+            return SmsStatus.builder()
+                    .phone(phone)
+                    .message(message)
+                    .result(STATUS_ERROR)
+                    .description(DESCRIPTION_NO_WORKING_SIM)
+                    .numberPort(numberPotr)
+                    .numberSim(simNumber)
+                    .timestamp_send(generetaData())
+                    .build();
+        } catch (OpenvoxUndeliveredException e) {
+            log.info("Can't deliever a message from port {}, sim {}.", numberPotr, simNumber);
+            return SmsStatus.builder()
+                    .phone(phone)
+                    .message(message)
+                    .result(STATUS_ERROR)
+                    .description(DESCRIPTION_NOT_DELIEVERED)
+                    .numberPort(numberPotr)
+                    .numberSim(simNumber)
+                    .timestamp_send(generetaData())
+                    .build();
+        } catch (OpenvoxFailedException e) {
             log.info("Port: {}, sim: {} don't work.", numberPotr, simNumber);
             return SmsStatus.builder()
                     .phone(phone)
